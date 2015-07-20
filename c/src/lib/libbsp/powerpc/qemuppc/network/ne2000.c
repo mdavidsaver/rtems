@@ -1259,7 +1259,7 @@ rtems_ne_driver_attach (struct rtems_bsdnet_ifconfig *config, int attach)
   else
     {
       unsigned char prom[16];
-      int ia;
+      int ia, ok=0;
 
       /* Read the PROM to get the Ethernet hardware address.  */
 
@@ -1283,8 +1283,15 @@ rtems_ne_driver_attach (struct rtems_bsdnet_ifconfig *config, int attach)
 
       outport_byte (sc->port + CMDR, MSK_PG0 | MSK_RD2 | MSK_STP);
 
-      for (ia = 0; ia < ETHER_ADDR_LEN; ++ia)
+      for (ia = 0; ia < ETHER_ADDR_LEN; ++ia) {
         sc->arpcom.ac_enaddr[ia] = prom[ia * 2];
+        if(sc->arpcom.ac_enaddr[ia]) ok=1;
+      }
+
+      if(!ok) {
+        printf("Read invalid MAC 00:00:00:00:00:00.  Ignoring\n");
+        return 0;
+      }
     }
 
   /* Set up the network interface.  */
