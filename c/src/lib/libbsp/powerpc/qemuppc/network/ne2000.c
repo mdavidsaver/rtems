@@ -315,12 +315,6 @@ ne_check_status (struct ne_softc *sc, int from_irq_handler)
     /* ack */
     outport_byte (port + ISR, status);
 
-#ifdef DEBUG_NE2000
-    printk ("NE2000 status 0x%x (8259 enabled: %s; mask: %x)\n", status,
-            i8259s_cache & (1 << sc->irno) ? "no" : "yes",
-            i8259s_cache);
-#endif
-
     /* Check for incoming packet overwrite.  */
     if (status & MSK_OVW)
     {
@@ -399,44 +393,6 @@ ne_interrupt_handler (rtems_irq_hdl_param cdata)
   printk("!");
 #endif
   ne_check_status(sc, 1);
-}
-
-/* Turn NE2000 interrupts on.  */
-
-static void
-ne_interrupt_on (const rtems_irq_connect_data *irq)
-{
-  struct ne_softc *sc;
-
-#ifdef DEBUG_NE
-  printk ("ne_interrupt_on()\n");
-#endif
-  sc = ne_device_for_irno (irq->name);
-  if (sc != NULL)
-    outport_byte (sc->port + IMR, NE_INTERRUPTS);
-}
-
-/* Turn NE2000 interrupts off.  See ne_interrupt_on.  */
-
-static void
-ne_interrupt_off (const rtems_irq_connect_data *irq)
-{
-  struct ne_softc *sc;
-
-#ifdef DEBUG_NE
-  printk ("ne_interrupt_off()\n");
-#endif
-  sc = ne_device_for_irno (irq->name);
-  if (sc != NULL)
-    outport_byte (sc->port + IMR, 0);
-}
-
-/* Return whether NE2000 interrupts are on.  */
-
-static int
-ne_interrupt_is_on (const rtems_irq_connect_data *irq)
-{
-  return BSP_irq_enabled_at_i8259s (irq->name);
 }
 
 /* Initialize the NE2000 hardware.  */
@@ -527,9 +483,9 @@ ne_init_irq_handler(int irno)
   irq.name = irno;
   irq.hdl = ne_interrupt_handler;
   irq.handle = (rtems_irq_hdl) irno;
-  irq.on = ne_interrupt_on;
-  irq.off = ne_interrupt_off;
-  irq.isOn = ne_interrupt_is_on;
+  irq.on = NULL;
+  irq.off = NULL;
+  irq.isOn = NULL;
 
   if (!BSP_install_rtems_irq_handler (&irq))
     rtems_panic ("Can't attach NE interrupt handler for irq %d\n", irno);
