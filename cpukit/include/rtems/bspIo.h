@@ -50,7 +50,7 @@ extern 	BSP_polling_getchar_function_type 	BSP_poll_char;
  */
 extern int getchark(void);
 extern void vprintk(const char *fmt, va_list ap);
-extern void printk(const char *fmt, ...);
+extern void printk(const char *fmt, ...) __attribute__((format(__printf__,1,2)));
 extern void putk(const char *s);
 
 /*
@@ -61,7 +61,7 @@ extern void putk(const char *s);
  *  own "printf plugin", then they may redirect those reports
  *  as they see fit.
  */
-extern int printk_plugin(void *context, const char *fmt, ...);
+extern int printk_plugin(void *context, const char *fmt, ...) __attribute__((format(__printf__,2,3)));
 
 /*
  *  Type definition for function which can be plugged in to
