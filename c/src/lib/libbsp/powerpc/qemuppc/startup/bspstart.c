@@ -32,6 +32,8 @@
 
 extern const pci_config_access_functions pci_indirect_functions;
 
+extern bd_t bsp_uboot_board_info;
+
 static
 void config_pci_devices(void);
 static
@@ -95,6 +97,21 @@ void bsp_start( void )
   intrStackSize =  (uintptr_t) bsp_interrupt_stack_size;
 
   /*
+   * Setup BATs and enable MMU
+   */
+  /* Memory */
+  setdbat(0, 0x0<<24, 0x0<<24, bsp_uboot_board_info.bi_memsize, _PAGE_RW);
+  setibat(0, 0x0<<24, 0x0<<24, bsp_uboot_board_info.bi_memsize,        0);
+  /* PCI I/O ports and memory mapped devices */
+  setdbat(1, PREP_ISA_IO_BASE, PREP_ISA_IO_BASE, 0x20000,  IO_PAGE);
+  setdbat(2, PREP_ISA_MEM_BASE, PREP_ISA_MEM_BASE, 0x4000000,  IO_PAGE);
+  /* Host bridge IACK register is 0xbffffff0 */
+  setdbat(3, 0xbffe0000, 0xbffe0000, 0x20000, IO_PAGE);
+
+  _write_MSR(_read_MSR() | MSR_DR | MSR_IR);
+  asm volatile("sync; isync");
+
+  /*
    * Initialize default raw exception handlers.
    */
   sc = ppc_exc_initialize(
@@ -120,21 +137,6 @@ void bsp_start( void )
   if (sc != RTEMS_SUCCESSFUL) {
     BSP_panic("cannot intitialize interrupts");
   }
-
-#if 0
-  /*
-   * Setup BATs and enable MMU
-   */
-  /* Memory */
-  setdbat(0, 0x0<<24, 0x0<<24, 2<<24, _PAGE_RW);
-  setibat(0, 0x0<<24, 0x0<<24, 2<<24,        0);
-  /* PCI    */
-  setdbat(1, 0x8<<24, 0x8<<24, 1<<24,  IO_PAGE);
-  setdbat(2, 0xc<<24, 0xc<<24, 1<<24,  IO_PAGE);
-
-  _write_MSR(_read_MSR() | MSR_DR | MSR_IR);
-  asm volatile("sync; isync");
-#endif
 
   setup_watchdog();
 }
