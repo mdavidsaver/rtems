@@ -1,5 +1,4 @@
-        #.section ".text"
-	.section .entry_point_section,"awx",@progbits
+        .section .entry_point_section,"awx",@progbits
         .global _start
 
 _start:
@@ -19,12 +18,7 @@ _start:
         bl      cmain
 	.size _start, . - _start
 
-	.global __eabi
+        .global __eabi
 __eabi:
-	blr
-	.size __eabi, . - __eabi
-
-	.section ".reset","ax"
-_reset:
-	b _start
-	.size _reset, . - _reset
+        blr
+        .size __eabi, . - __eabi

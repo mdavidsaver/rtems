@@ -3,30 +3,30 @@
 #
 
 This BSP is designed to operate on the PPC simulator provided by qemu.
-We are using the Courverture Project's qemu source tree.
+Tested with the PReP PPC machine of QEMU 2.1.2.
 
-Couverture Project to add tracing/coverage to qemu
-  http://libre.adacore.com/libre/tools/coverage/
+Usage:
 
-Their source repository
-  http://forge.open-do.org/scm/?group_id=8
+To run the "hello world" sample program.
 
-That has instructions on checking it out.
+$ ./configure --prefix=<prefixdir> --target=powerpc-rtems4.10 --enable-cxx \
+  --enable-networking --enable-posix --enable-rtemsbsp=qemuppc
+$ make
+$ qemu-system-ppc -no-reboot -M prep -cpu 603e -m 64 -serial stdio \
+ -net nic,model=ne2k_isa \
+ -watchdog i6300esb \
+ -bios ./powerpc-rtems4.10/c/qemuppc/lib/libbsp/powerpc/qemuppc/bootloader/bios.ralf \
+ -kernel ./powerpc-rtems4.10/c/qemuppc/testsuites/samples/hello/hello.ralf
 
-If you check it out into ${BASE} directory, then the
-directory with their modified qemu is:
 
-  ${BASE}/couverture/trunk/couverture/tools/qemu-r6588
+QEMU issues:
 
-My BASE is /home/joel/qemu-coverage.  I configured like this
-from within the qemu source tree.
+* The internal mechanism to trigger emulator exit (a magic DMA interrupt)
+  doesn't work due to an internal coding error (the GPIO pin isn't connected).
+  To work around this an extra watchdog timer device must be included
+  if it normal emulator exit is desired.
 
-  ./configure --prefix=/home/joel/qemu-coverage/install
-  make
-  make install
-
-This gives all simulated targets supported.  
-
-See the Makefile for more details.
-
-  
+* The default BIOS (Openhackware) seems to be broken entirely for QEMU 2.1.2
+  and tries to access addresses which don't exist for this machine.
+  Therefore a stub "bootloader" is provided as a second executable,
+  and the BSP sets up the system from its power on state.

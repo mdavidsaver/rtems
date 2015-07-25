@@ -31,29 +31,69 @@ project_lib_DATA += rtems_crti.$(OBJEXT)
 dist_project_lib_DATA += startup/linkcmds
 
 # startup
-startup_SOURCES = ../../shared/bspclean.c ../../shared/bsplibc.c \
+libbsp_a_SOURCES = ../../shared/bspclean.c ../../shared/bsplibc.c \
     ../../shared/bsppredriverhook.c ../../shared/bsppretaskinghook.c \
     ../../shared/bspgetworkarea.c ../../shared/bsppost.c \
     ../../shared/bootcard.c ../../shared/sbrk.c \
     ../../shared/gnatinstallhandler.c \
-    startup/cmain.c startup/bspstart.c startup/bsppanic.c
+    ../../powerpc/shared/startup/panic.c \
+    startup/cmain.c startup/bspstart.c
+
 # pclock
-# clock_SOURCES = ../../shared/clock_driver_simidle.c
-clock_SOURCES = ../shared/clock/clock.c
+libbsp_a_SOURCES += ../shared/clock/clock.c
+
+# ToD
+include_HEADERS += ../../shared/tod.h
+libbsp_a_SOURCES += ../../shared/tod.c ../../powerpc/shared/tod/todcfg.c
+
 # console
-console_SOURCES = ../../shared/console-polled.c console/console-io.c
+include_bsp_HEADERS = ../../powerpc/shared/console/consoleIo.h \
+	../../powerpc/shared/console/uart.h
+
+# console
+libbsp_a_SOURCES += \
+    ../../powerpc/shared/console/uart.c \
+    ../../powerpc/shared/console/console.c \
+    ../../powerpc/shared/console/inch.c \
+    ../../powerpc/shared/console/consoleIo.h \
+    ../../powerpc/shared/console/keyboard.h \
+    ../../powerpc/shared/console/uart.h \
+    console/console-io.c
 
 # irq
-include_bsp_HEADERS = irq/irq.h \
+include_bsp_HEADERS += ../../powerpc/shared/irq/irq.h \
+	../../../libcpu/@RTEMS_CPU@/@exceptions@/bspsupport/irq_supp.h \
     ../../shared/include/irq-generic.h
 
-irq_SOURCES = irq/irq_init.c \
+libbsp_a_SOURCES += irq/irq_init.c \
+	../../powerpc/shared/irq/i8259.c \
 	../../shared/src/irq-generic.c \
 	../../shared/src/irq-legacy.c
 
+include_bsp_HEADERS += ../../powerpc/shared/pci/pci.h
+# pci
+libbsp_a_SOURCES += ../../powerpc/shared/pci/pci.c \
+    ../../powerpc/shared/pci/generic_clear_hberrs.c \
+    ../../powerpc/shared/pci/pcifinddevice.c
+
+
+# network
+if HAS_NETWORKING
+ne2000_CPPFLAGS = -D__INSIDE_RTEMS_BSD_TCPIP_STACK__
+noinst_PROGRAMS += ne2000.rel
+ne2000_rel_SOURCES = network/ne2000.c
+ne2000_rel_CPPFLAGS = $(AM_CPPFLAGS) $(ne2000_CPPFLAGS)
+ne2000_rel_LDFLAGS = $(RTEMS_RELLDFLAGS)
+
+# This driver needs to be reworked for the BSD stack.
+# We only install wd80x3.h if HAS_NETWORKING was defined
+include_HEADERS += network/wd80x3.h
+
+endif
+
+libbsp_a_SOURCES += $(include_bsp_HEADERS)
+
 noinst_LIBRARIES += libbsp.a
-libbsp_a_SOURCES = $(startup_SOURCES) $(clock_SOURCES) $(console_SOURCES) \
-    $(irq_SOURCES)
 
 libbsp_a_LIBADD = ../../../libcpu/@RTEMS_CPU@/shared/cpuIdent.rel \
     ../../../libcpu/@RTEMS_CPU@/shared/cache.rel \
@@ -63,6 +103,9 @@ libbsp_a_LIBADD = ../../../libcpu/@RTEMS_CPU@/shared/cpuIdent.rel \
     ../../../libcpu/@RTEMS_CPU@/mpc6xx/mmu.rel \
     ../../../libcpu/@RTEMS_CPU@/mpc6xx/timer.rel
 
+if HAS_NETWORKING
+libbsp_a_LIBADD += ne2000.rel
+endif
 
 EXTRA_DIST = times
 
