@@ -30,7 +30,7 @@ RTEMS_BSP_CLEANUP_OPTIONS(0, 0)
 AM_CONDITIONAL(HAS_NETWORKING,[test "$HAS_NETWORKING" = "yes"])
 
 # Explicitly list all Makefiles here
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile bootloader/Makefile])
 
 RTEMS_PPC_EXCEPTIONS
 

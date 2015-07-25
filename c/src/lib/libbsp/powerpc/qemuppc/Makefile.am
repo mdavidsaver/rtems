@@ -7,6 +7,8 @@ ACLOCAL_AMFLAGS = -I ../../../../aclocal
 include $(top_srcdir)/../../../../automake/compile.am
 include $(top_srcdir)/../../bsp.am
 
+SUBDIRS = . bootloader
+
 include_bspdir = $(includedir)/bsp
 
 dist_project_lib_DATA = bsp_specs
