@@ -1188,8 +1188,8 @@ rtems_ne_driver_attach (struct rtems_bsdnet_ifconfig *config, int attach)
       sc->irno = strtoul (opt, 0, 0);
     }
     if (sc->irno == 0) {
-      /* We use 5 as the default IRQ.  */
-      sc->irno = 5;
+      /* QEMU defaults to 9 */
+      sc->irno = 9;
     }
   }
 
