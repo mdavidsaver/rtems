@@ -102,6 +102,10 @@ SECTIONS
     __data_end = .;
   }
 
+  PROVIDE (__EXCEPT_START__ = .);
+  .gcc_except_table   : { *(.gcc_except_table*) }
+  PROVIDE (__EXCEPT_END__ = .);
+
   .sdata : {
     __sdata_start = .;
     PROVIDE (_SDA_BASE_ = 32768);
@@ -118,10 +122,6 @@ SECTIONS
      */
     bsp_section_data_end = .;
   }
-
-  PROVIDE (__EXCEPT_START__ = .);
-  .gcc_except_table   : { *(.gcc_except_table*) }
-  PROVIDE (__EXCEPT_END__ = .);
 
   .sbss :
   {
