@@ -206,10 +206,14 @@ int config_pdev_bar(struct config_info *info, int b, int d, int f, int bar)
     }
 
     if(isio) {
-        if(info->last_io-info->next_io < len) {
+        /* ensure that address is aligned to the size */
+        uint32_t nextio = 1+((info->next_io-1)|(len-1));
+
+        if(info->last_io-nextio < len) {
             printk("%d:%d.%d not enough space for %u byte IO BAR%d\n",b,d,f,(unsigned)len,bar);
             return 1;
         }
+        info->next_io = nextio;
         pci_write_config_dword(b,d,f, PCI_BASE_ADDRESS_0+4*bar, info->next_io);
         printk("%d:%d.%d BAR%d assign IO  0x%08x len 0x%08x\n", b,d,f, bar, (unsigned)info->next_io, (unsigned)len);
         info->next_io += len;
@@ -219,10 +223,13 @@ int config_pdev_bar(struct config_info *info, int b, int d, int f, int bar)
         info->hasio = 1;
 
     } else {
-        if(info->last_mem-info->next_mem < len) {
+        uint32_t nextmem = 1+((info->next_mem-1)|(len-1));
+
+        if(info->last_mem-nextmem < len) {
             printk("%d:%d.%d not enough space for %d byte MEM BAR%d\n",b,d,f,(unsigned)len,bar);
             return 1;
         }
+        info->next_mem = nextmem;
         pci_write_config_dword(b,d,f, PCI_BASE_ADDRESS_0+4*bar, info->next_mem);
         printk("%d:%d.%d BAR%d assign MEM 0x%08x len 0x%08x\n", b,d,f, bar, (unsigned)info->next_mem,(unsigned)len);
         info->next_mem += len;
