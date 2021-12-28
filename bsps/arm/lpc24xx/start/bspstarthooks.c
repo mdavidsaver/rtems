@@ -164,6 +164,7 @@ static BSP_START_TEXT_SECTION void lpc24xx_init_emc_dynamic(void)
 
 static BSP_START_TEXT_SECTION void lpc24xx_init_main_oscillator(void)
 {
+#if LPC24XX_OSCILLATOR_MAIN>0U
   #ifdef ARM_MULTILIB_ARCH_V4
     if ((SCS & 0x40) == 0) {
       SCS |= 0x20;
@@ -189,6 +190,7 @@ static BSP_START_TEXT_SECTION void lpc24xx_init_main_oscillator(void)
       }
     }
   #endif
+#endif
 }
 
 #ifdef ARM_MULTILIB_ARCH_V4
@@ -372,6 +374,11 @@ static BSP_START_TEXT_SECTION void lpc24xx_init_pll(void)
       #else
         #error "unexpected CCLK"
       #endif
+    #elif LPC24XX_OSCILLATOR_MAIN == 0U && LPC24XX_CCLK == LPC24XX_OSCILLATOR_INTERNAL
+      /* continue using boot up default for CCLK, internal oscillator /1 w/o pll */
+      (void)lpc17xx_set_pll;
+      /* set PCLKDIV as requested.  Default is /4  */
+      LPC17XX_SCB.pclksel = LPC17XX_SCB_PCLKSEL_PCLKDIV(LPC24XX_PCLKDIV);
     #else
       #error "unexpected main oscillator frequency"
     #endif
