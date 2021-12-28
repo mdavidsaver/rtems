@@ -17,6 +17,7 @@ include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/lpc-clock-
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/lpc-ethernet-config.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/lpc17xx.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/lpc24xx.h
+include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/marble.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/ssp.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/start-config.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/system-clocks.h

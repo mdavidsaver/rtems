@@ -29,6 +29,7 @@ dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc17
 dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc17xx_ea_rom_int
 dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc17xx_plx800_ram
 dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc17xx_plx800_rom_int
+dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc1776_marble_mini
 dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc2362
 dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc23xx_tli800
 dist_project_lib_DATA += ../../../../../../bsps/arm/lpc24xx/start/linkcmds.lpc24xx_ea
@@ -118,6 +119,10 @@ librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/start-config-e
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/start-config-emc-static.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/start-config-mpu.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/start-config-pinsel.c
+
+if MARBLE_MINI
+librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/marble.c
+endif
 
 ###############################################################################
 #                  Network                                                    #
