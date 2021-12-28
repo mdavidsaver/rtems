@@ -8,6 +8,7 @@ include_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/tm27.h
 include_bspdir = $(includedir)/bsp
 include_bsp_HEADERS =
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/dma.h
+include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/eeprom.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/i2c.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/io.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/lpc24xx/include/bsp/irq.h

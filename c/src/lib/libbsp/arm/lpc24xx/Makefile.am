@@ -86,6 +86,9 @@ librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/shared/clock/clock-armv7m.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/shared/dev/rtc/rtc-support.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/rtc/rtc-config.c
 
+# EEPROM
+librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/eeprom/lpc-eeprom.c
+
 # Misc
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/system-clocks.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/start/dma.c
