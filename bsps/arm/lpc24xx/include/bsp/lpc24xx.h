@@ -793,6 +793,11 @@ Reset, and Code Security/Debugging */
 #define U3FDR          (*(volatile uint32_t *) (UART3_BASE_ADDR + 0x28))
 #define U3TER          (*(volatile uint32_t *) (UART3_BASE_ADDR + 0x30))
 
+#ifdef ARM_MULTILIB_ARCH_V4
+#else
+  #define UART4_BASE_ADDR		0x400A4000
+#endif
+
 /* I2C Interface 0 */
 #ifdef ARM_MULTILIB_ARCH_V4
   #define I2C0_BASE_ADDR		0xE001C000

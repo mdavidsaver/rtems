@@ -76,6 +76,7 @@ librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/console/console-conf
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/console/uart-probe-1.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/console/uart-probe-2.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/console/uart-probe-3.c
+librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/lpc24xx/console/uart-probe-4.c
 
 # Clock
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/shared/clock/clock-nxp-lpc.c

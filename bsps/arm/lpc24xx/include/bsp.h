@@ -117,6 +117,8 @@ bool lpc24xx_uart_probe_2(struct rtems_termios_device_context *context);
 
 bool lpc24xx_uart_probe_3(struct rtems_termios_device_context *context);
 
+bool lpc24xx_uart_probe_4(struct rtems_termios_device_context *context);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

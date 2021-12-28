@@ -96,6 +96,19 @@ static ns16550_context lpc24xx_uart_context_3 = {
 };
 #endif
 
+#ifdef LPC24XX_CONFIG_UART_4
+static ns16550_context lpc24xx_uart_context_4 = {
+  .base = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("UART 4"),
+  .get_reg = lpc24xx_uart_get_register,
+  .set_reg = lpc24xx_uart_set_register,
+  .port = UART4_BASE_ADDR,
+  .irq = LPC24XX_IRQ_UART_4,
+  .clock = LPC24XX_PCLK,
+  .initial_baud = LPC24XX_UART_BAUD,
+  .has_fractional_divider_register = true
+};
+#endif
+
 const console_device console_device_table[] = {
   #ifdef LPC24XX_CONFIG_CONSOLE
     {
@@ -129,6 +142,14 @@ const console_device console_device_table[] = {
       .context = &lpc24xx_uart_context_3.base
     },
   #endif
+    #ifdef LPC24XX_CONFIG_UART_4
+      {
+        .device_file = "/dev/ttyS4",
+        .probe = lpc24xx_uart_probe_4,
+        .handler = &ns16550_handler_interrupt,
+        .context = &lpc24xx_uart_context_4.base
+      },
+    #endif
 };
 
 const size_t console_device_count = RTEMS_ARRAY_SIZE(console_device_table);
