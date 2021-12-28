@@ -26,10 +26,9 @@
 #include <bsp/lpc24xx.h>
 #include <bsp/system-clocks.h>
 
-/**
- * @brief Internal RC oscillator frequency in [Hz].
- */
-#define LPC24XX_OSCILLATOR_INTERNAL 4000000U
+#ifndef LPC24XX_OSCILLATOR_INTERNAL
+  #error "unknown internal oscillator frequency"
+#endif
 
 #ifndef LPC24XX_OSCILLATOR_MAIN
   #error "unknown main oscillator frequency"
