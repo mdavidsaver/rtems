@@ -3,3 +3,12 @@ Tested with STM32F4-Discovery evaluation board.
 For debugging on Linux use:
 
 https://github.com/texane/stlink
+
+
+Tested with LBNL Marble (not Mini)
+
+https://github.com/BerkeleyLab/Marble
+
+Based on STM32F207VCT6 Microcontroller
+
+Believed to be compatible with stm32f205xx, stm32f207xx, stm32f215xx, and stm32f217xx
