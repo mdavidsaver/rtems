@@ -86,6 +86,7 @@ rtems_status_code stm32f4_i2c_set_bitrate(
 
 extern stm32f4_i2c_bus_entry *const stm32f4_i2c1;
 extern stm32f4_i2c_bus_entry *const stm32f4_i2c2;
+extern stm32f4_i2c_bus_entry *const stm32f4_i2c3;
 
 /** @} */
 

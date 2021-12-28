@@ -35,3 +35,13 @@
 
   stm32f4_i2c_bus_entry *const stm32f4_i2c2 = &stm32f4_i2c2_entry;
 #endif
+
+#ifdef STM32F4_ENABLE_I2C3
+  static stm32f4_i2c_bus_entry stm32f4_i2c3_entry = {
+    .regs = STM32F4_I2C3,
+    .index = 2,
+    .vector = STM32F4_IRQ_I2C3_EV,
+  };
+
+  stm32f4_i2c_bus_entry *const stm32f4_i2c3 = &stm32f4_i2c3_entry;
+#endif

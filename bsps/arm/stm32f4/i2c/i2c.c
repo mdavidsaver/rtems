@@ -35,6 +35,7 @@
 stm32f4_rcc_index i2c_rcc_index [] = {
   STM32F4_RCC_I2C1,
   STM32F4_RCC_I2C2,
+  STM32F4_RCC_I2C3,
 };
 
 static stm32f4_rcc_index i2c_get_rcc_index(stm32f4_i2c_bus_entry *e)
