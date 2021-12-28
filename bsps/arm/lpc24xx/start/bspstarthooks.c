@@ -175,7 +175,15 @@ static BSP_START_TEXT_SECTION void lpc24xx_init_main_oscillator(void)
     volatile lpc17xx_scb *scb = &LPC17XX_SCB;
 
     if ((scb->scs & LPC17XX_SCB_SCS_OSC_STATUS) == 0) {
-      scb->scs |= LPC17XX_SCB_SCS_OSC_ENABLE;
+      scb->scs |= LPC17XX_SCB_SCS_OSC_ENABLE
+      /* low range :  1-20Mhz
+       * high range: 15-25MHz
+       * We ~split the overlap and use high range when > 17MHz
+       */
+      #if LPC24XX_OSCILLATOR_MAIN>17000000U
+        | LPC17XX_SCB_SCS_OSC_RANGE_SEL
+      #endif
+      ;
       while ((scb->scs & LPC17XX_SCB_SCS_OSC_STATUS) == 0) {
         /* Wait */
       }
