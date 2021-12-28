@@ -80,6 +80,13 @@ unsigned lpc24xx_pllclk(void);
  */
 unsigned lpc24xx_cclk(void);
 
+/**
+ * @brief Returns the Peripheral clock frequency in [Hz].
+ *
+ * Returns zero if Peripheral clock is disabled or not present.
+ */
+unsigned lpc24xx_pclk(void);
+
 /** @} */
 
 #ifdef __cplusplus

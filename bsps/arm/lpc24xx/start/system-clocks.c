@@ -104,11 +104,53 @@ void lpc24xx_micro_seconds_delay(unsigned us)
 }
 
 #ifdef ARM_MULTILIB_ARCH_V7M
-  static unsigned lpc17xx_sysclk(unsigned clksrcsel)
+  /* Clock tree for lpc178x/7x
+   * adapted from Fig. 4 on page 22
+   * UM10470 LPC178x/7x User Manual
+   * Rev 4.0 19 Dec. 2016
+   *
+   * mosc <- LPC24XX_OSCILLATOR_MAIN
+   * iosc <- LPC24XX_OSCILLATOR_INTERNAL
+   *
+   * PLL1 <- mosc
+   *
+   * if CLKSRCSEL[CLKSRC]
+   *   sysclk <- mosc
+   * else
+   *   sysclk <- iosc
+   *
+   * PLL0 <- sysclk
+   *
+   * if CCLKSEL[CCLKSRC]
+   *   sysclk_or_pll0 <- PLL0
+   * else
+   *   sysclk_or_pll0 <- sysclk
+   *
+   * cclk <- sysclk_or_pll0 / CCLKSEL[CCLKDIV]
+   *
+   * emclk <- cclk / (EMCCLKSEL[EMCDIV]+1)
+   *
+   * pclk <- sysclk_or_pll0 / PCLKSEL[PCLKDIV]
+   */
+  static unsigned lpc17xx_sysclk(void)
   {
-    return (clksrcsel & LPC17XX_SCB_CLKSRCSEL_CLKSRC) != 0 ?
+    volatile lpc17xx_scb *scb = &LPC17XX_SCB;
+    return (scb->clksrcsel & LPC17XX_SCB_CLKSRCSEL_CLKSRC) != 0 ?
       LPC24XX_OSCILLATOR_MAIN
         : LPC24XX_OSCILLATOR_INTERNAL;
+  }
+
+  static unsigned lpc17xx_sysclk_or_pll0(void)
+  {
+    volatile lpc17xx_scb *scb = &LPC17XX_SCB;
+    unsigned cclk_in = 0;
+
+    if ((scb->cclksel & LPC17XX_SCB_CCLKSEL_CCLKSEL) != 0) {
+      cclk_in = lpc24xx_pllclk();
+    } else {
+      cclk_in = lpc17xx_sysclk();
+    }
+    return cclk_in;
   }
 #endif
 
@@ -146,7 +188,7 @@ unsigned lpc24xx_pllclk(void)
     }
   #else
     volatile lpc17xx_scb *scb = &LPC17XX_SCB;
-    unsigned sysclk = lpc17xx_sysclk(scb->clksrcsel);
+    unsigned sysclk = lpc17xx_sysclk();
     unsigned pllstat = scb->pll_0.stat;
     unsigned pllclk = 0;
     unsigned enabled_and_locked = LPC17XX_PLL_STAT_PLLE
@@ -173,17 +215,35 @@ unsigned lpc24xx_cclk(void)
   #else
     volatile lpc17xx_scb *scb = &LPC17XX_SCB;
     unsigned cclksel = scb->cclksel;
-    unsigned cclk_in = 0;
+    unsigned cclk_in = lpc17xx_sysclk_or_pll0();
     unsigned cclk = 0;
 
-    if ((cclksel & LPC17XX_SCB_CCLKSEL_CCLKSEL) != 0) {
-      cclk_in = lpc24xx_pllclk();
-    } else {
-      cclk_in = lpc17xx_sysclk(scb->clksrcsel);
-    }
-
+    /* CCLKDIV can be zero, which will freeze the CPU.
+     * As we are executing code, this is unlikely to
+     * be the case.
+     */
     cclk = cclk_in / LPC17XX_SCB_CCLKSEL_CCLKDIV_GET(cclksel);
   #endif
 
   return cclk;
+}
+
+unsigned lpc24xx_pclk(void)
+{
+#ifdef ARM_MULTILIB_ARCH_V7M
+  volatile lpc17xx_scb *scb = &LPC17XX_SCB;
+  unsigned pclksel = scb->pclksel;
+  unsigned clk_in = lpc17xx_sysclk_or_pll0();
+  unsigned pclk = 0;
+  uint32_t pclkdiv = LPC17XX_SCB_PCLKSEL_PCLKDIV_GET(pclksel);
+
+  /* PCLKDIV may legitimately be zero, which disables
+   * the peripheral clock.
+   */
+  if(pclkdiv)
+    pclk = clk_in / LPC17XX_SCB_PCLKSEL_PCLKDIV_GET(pclksel);
+  return pclk;
+#else
+    return 0;
+#endif
 }
