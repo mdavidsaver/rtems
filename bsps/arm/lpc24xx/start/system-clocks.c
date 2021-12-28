@@ -26,6 +26,10 @@
 #include <bsp/lpc24xx.h>
 #include <bsp/system-clocks.h>
 
+#ifdef ARM_MULTILIB_ARCH_V7M
+#  include <bsp/clock-armv7m.h>
+#endif
+
 #ifndef LPC24XX_OSCILLATOR_INTERNAL
   #error "unknown internal oscillator frequency"
 #endif
@@ -62,6 +66,20 @@ void lpc24xx_timer_initialize(void)
   T1TCR = TCR_EN;
 }
 
+#ifdef ARM_MULTILIB_ARCH_V7M
+
+uint32_t _CPU_Counter_frequency(void)
+{
+  return _ARMV7M_Clock_frequency();
+}
+
+CPU_Counter_ticks _CPU_Counter_read(void)
+{
+  return _ARMV7M_Clock_counter(&_ARMV7M_TC);
+}
+
+#else /* !ARM_MULTILIB_ARCH_V7M */
+
 uint32_t _CPU_Counter_frequency(void)
 {
   return LPC24XX_PCLK;
@@ -71,6 +89,8 @@ CPU_Counter_ticks _CPU_Counter_read(void)
 {
   return lpc24xx_timer();
 }
+
+#endif /* !ARM_MULTILIB_ARCH_V7M */
 
 void lpc24xx_micro_seconds_delay(unsigned us)
 {
