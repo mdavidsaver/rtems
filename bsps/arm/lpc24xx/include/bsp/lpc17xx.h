@@ -140,6 +140,12 @@ typedef struct {
 	uint32_t extpolar;
 	uint32_t reserved_150 [12];
 	uint32_t rsid;
+#define LPC17XX_SCB_RSID_POR BSP_BIT32(0)
+#define LPC17XX_SCB_RSID_EXTR BSP_BIT32(1)
+#define LPC17XX_SCB_RSID_WDTR BSP_BIT32(2)
+#define LPC17XX_SCB_RSID_BODR BSP_BIT32(3)
+#define LPC17XX_SCB_RSID_SYSRESET BSP_BIT32(4)
+#define LPC17XX_SCB_RSID_LOCKUP BSP_BIT32(5)
 	uint32_t reserved_184 [1];
 	uint32_t matrixarb;
 	uint32_t reserved_18c [5];
