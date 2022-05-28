@@ -88,6 +88,60 @@ extern stm32f4_i2c_bus_entry *const stm32f4_i2c1;
 extern stm32f4_i2c_bus_entry *const stm32f4_i2c2;
 extern stm32f4_i2c_bus_entry *const stm32f4_i2c3;
 
+typedef struct {
+    /// SCL Pin.  Must configure an Alternate function
+    stm32f4_gpio_config scl;
+    /// SDA Pin  Must configure an Alternate function
+    stm32f4_gpio_config sda;
+    /// If set, prevent automatic recovery from I2C bus lockup.
+    bool inhibit_recover;
+} stm32f4_i2c_bus_conf;
+
+struct stm32f4_i2c_bus;
+typedef struct stm32f4_i2c_bus stm32f4_i2c_bus;
+
+extern stm32f4_i2c_bus stm32f4_i2c_bus1;
+extern stm32f4_i2c_bus stm32f4_i2c_bus2;
+extern stm32f4_i2c_bus stm32f4_i2c_bus3;
+
+#define STM32F4_I2C1_BUS_PATH "/dev/i2c-1"
+#define STM32F4_I2C2_BUS_PATH "/dev/i2c-2"
+#define STM32F4_I2C3_BUS_PATH "/dev/i2c-3"
+
+/** @brief Register I2C bus as "/dev/i2c-#"
+ *
+ *  @param bus Address of one of the stm32f4_i2c_bus* globals
+ *  @returns zero on success, or a negative errno
+ *
+ *  For each bus, either use this function
+ *  or stm32f4_i2c_init().  Never both.
+ *
+ *  Note, unless `conf->inhibit_recover` is set, a attempt will
+ *  be made to automaticaly recover from I2C bus lockup by
+ *  manually pulsing SCL.  The I2C spec. does not cover this
+ *  process, and it is known to cause some parts to misbehave.
+ */
+int stm32f4_i2c_register(stm32f4_i2c_bus *bus, const stm32f4_i2c_bus_conf *conf);
+
+/** @brief I2C bus recovery hook
+ *  @param bus Address of one of the stm32f4_i2c_bus* globals
+ *  @param reset true when bus being placed in reset,
+ *               false when returning to normal operation.
+ *  @return 0 if successfully recovered.  Otherwise a negative errno code.
+ *
+ *  Hook to allow application specific actions to recover a stuck I2C bus.
+ *  eg. by toggling external reset pins.
+ *
+ *  Called twice.  First with reset==true, then later with reset==false.
+ *
+ *  Note that the reset process is always run once during stm32f4_i2c_register()
+ *
+ *  This reset hook stm32f4_i2c_reset_hook() will be called regardless of
+ *  `conf->inhibit_recover`.
+ */
+int stm32f4_i2c_reset_hook(stm32f4_i2c_bus *bus,
+                           bool reset);
+
 /** @} */
 
 #ifdef __cplusplus
