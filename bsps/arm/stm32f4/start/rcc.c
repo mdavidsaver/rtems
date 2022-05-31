@@ -37,6 +37,15 @@ static void rcc_set(
     val &= ~bit;
   }
   regs [reg] = val;
+#ifdef STM32F4_FAMILY_F2XX
+  /* Errata for STM32F20x/STM32F21x and STM32F215STM32F217xx
+   *  ES0005 rev 11, Jan. 2021
+   * 2.1.11 - "Delay after RCC peripheral clock enabling"
+   * Apparently the preceding store can complete before the clock is stable.
+   * Take the first workaround.
+   */
+  __asm__ __volatile__("dsb":::"memory");
+#endif
   rtems_interrupt_enable(level);
 }
 
