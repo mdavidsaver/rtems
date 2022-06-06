@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Sebastian Huber.  All rights reserved.
+ * Copyright (c) 2022 Michael Davidsaver
  *
  *  embedded brains GmbH
  *  Obere Lagerstr. 30
@@ -25,279 +26,325 @@
 #include <bsp/stm32f4xxxx_rcc.h>
 #include <bsp/stm32f4xxxx_flash.h>
 
-static rtems_status_code set_system_clk(
-  uint32_t sys_clk,
-  uint32_t hse_clk,
-  uint32_t hse_flag
-);
+// default clock config with all zeros
+__attribute__((weak))
+const stm32f4_clock_config_t stm32f4_clock_config;
 
-static void init_main_osc( void )
+#define STM32F4_HSI_OSCILLATOR 16000000
+
+#if defined(STM32F4_HSE_OSCILLATOR) || defined(STM32F4_SYSCLK) \
+  || defined(STM32F4_HCLK) || defined(STM32F4_PCLK1) \
+  || defined(STM32F4_PCLK2)
+#  error BSP option clock configuration now at runtime.  see bsp.h
+#endif
+
+static
+uint32_t stm32f4_hclk_freq;
+static
+uint32_t stm32f4_pclk_freq[2];
+
+uint32_t bsp_sysclk(void)
 {
-  volatile stm32f4_rcc *rcc = STM32F4_RCC;
-  rtems_status_code     status;
-
-  /* Revert to reset values */
-  rcc->cr |= RCC_CR_HSION;   /* turn on HSI */
-
-  while ( !( rcc->cr & RCC_CR_HSIRDY ) ) ;
-
-  rcc->cfgr &= 0x00000300; /* all prescalers to 0, clock source to HSI */
-
-  rcc->cr &= 0xF0F0FFFD;   /* turn off all clocks and PLL except HSI */
-
-  status = set_system_clk( STM32F4_SYSCLK / 1000000L,
-    STM32F4_HSE_OSCILLATOR / 1000000L,
-    1 );
-
-  assert( rtems_is_status_successful( status ) );
+  return stm32f4_hclk_freq;
 }
 
-/**
- * @brief Sets up clocks configuration.
- *
- * Set up clocks configuration to achieve desired system clock
- * as close as possible with simple math.
- *
- * Limitations:
- * It is assumed that 1MHz resolution is enough.
- * Best fits for the clocks are achieved with multiplies of 42MHz.
- * Even though APB1, APB2 and AHB are calculated user is still required
- * to provide correct values for the bsp configuration for the:
- * STM32F4_PCLK1
- * STM32F4_PCLK2
- * STM32F4_HCLK
- * as those are used for the peripheral clocking calculations.
- *
- * @param sys_clk Desired system clock in MHz.
- * @param hse_clk External clock speed in MHz.
- * @param hse_flag Flag determining which clock source to use, 1 for HSE,
- *                 0 for HSI.
- *
- * @retval RTEMS_SUCCESSFUL Configuration has been succesfully aplied for the
- *                          requested clock speed.
- * @retval RTEMS_TIMEOUT HSE clock didn't start or PLL didn't lock.
- * @retval RTEMS_INVALID_NUMBER Requested clock speed is out of range.
- */
-static rtems_status_code set_system_clk(
-  uint32_t sys_clk,
-  uint32_t hse_clk,
-  uint32_t hse_flag
-)
+uint32_t bsp_pclk(unsigned n)
 {
-  volatile stm32f4_rcc   *rcc = STM32F4_RCC;
+  return stm32f4_pclk_freq[n-1u];
+}
+
+// paranoia configuration for FLASH
+static
+void init_flash(const stm32f4_clock_config_t * const conf, uint32_t f_ref)
+{
   volatile stm32f4_flash *flash = STM32F4_FLASH;
-  long                    timeout = 0;
+  uint32_t acr = flash->acr;
+  uint32_t hclk_mhz = f_ref/1000000;
 
-  int src_clk = 0;
+  // disable data and instruction caches, and prefetch.
+  // clear resets, which should not be set.
+  acr &= ~(STM32F4_FLASH_ACR_DCEN | STM32F4_FLASH_ACR_ICEN
+           | STM32F4_FLASH_ACR_DCRST | STM32F4_FLASH_ACR_ICRST
+           | STM32F4_FLASH_ACR_PRFTEN);
 
-  uint32_t pll_m = 0;
-  uint32_t pll_n = 0;
-  uint32_t pll_p = 0;
-  uint32_t pll_q = 0;
+  // max. wait states
+  acr = STM32F4_FLASH_ACR_LATENCY_SET(acr, 7);
 
-  uint32_t ahbpre = 0;
-  uint32_t apbpre1 = 0;
-  uint32_t apbpre2 = 0;
+  flash->acr = acr;
 
-  if ( sys_clk == 16 && hse_clk != 16 ) {
-    /* Revert to reset values */
-    rcc->cr |= RCC_CR_HSION;   /* turn on HSI */
+  // reset caches
+  flash->acr = acr | STM32F4_FLASH_ACR_DCRST | STM32F4_FLASH_ACR_ICRST;
+  flash->acr = acr;
 
-    while ( !( rcc->cr & RCC_CR_HSIRDY ) ) ;
+  uint32_t nwaits;
 
-    /* all prescalers to 0, clock source to HSI */
-    rcc->cfgr &= 0x00000300 | RCC_CFGR_SW_HSI;
-    rcc->cr &= 0xF0F0FFFD;   /* turn off all clocks and PLL except HSI */
-    flash->acr = 0; /* slow clock so no cache, no prefetch, no latency */
-
-    return RTEMS_SUCCESSFUL;
-  }
-
-  if ( sys_clk == hse_clk ) {
-    /* Revert to reset values */
-    rcc->cr |= RCC_CR_HSEON;   /* turn on HSE */
-    timeout = 400;
-
-    while ( !( rcc->cr & RCC_CR_HSERDY ) && --timeout ) ;
-
-    assert( timeout != 0 );
-
-    if ( timeout == 0 ) {
-      return RTEMS_TIMEOUT;
+  // cf. table 3 in PM0059 document from ST
+  if(conf->flash_voltage_mV < 2100) {
+    if(hclk_mhz<=16) {
+      nwaits = 0;
+    } else if(hclk_mhz<=32) {
+      nwaits = 1;
+    } else if(hclk_mhz<=48) {
+      nwaits = 2;
+    } else if(hclk_mhz<=64) {
+      nwaits = 3;
+    } else if(hclk_mhz<=80) {
+      nwaits = 4;
+    } else if(hclk_mhz<=96) {
+      nwaits = 5;
+    } else if(hclk_mhz<=112) {
+      nwaits = 6;
+    } else {
+      nwaits = 7;
     }
-
-    /* all prescalers to 0, clock source to HSE */
-    rcc->cfgr &= 0x00000300;
-    rcc->cfgr |= RCC_CFGR_SW_HSE;
-    /* turn off all clocks and PLL except HSE */
-    rcc->cr &= 0xF0F0FFFC | RCC_CR_HSEON;
-    flash->acr = 0; /* slow clock so no cache, no prefetch, no latency */
-
-    return RTEMS_SUCCESSFUL;
-  }
-
-  /*
-   * Lets use 1MHz input for PLL so we get higher VCO output
-   * this way we get better value for the PLL_Q divader for the USB
-   *
-   * Though you might want to use 2MHz as per CPU specification:
-   *
-   * Caution:The software has to set these bits correctly to ensure
-   * that the VCO input frequency ranges from 1 to 2 MHz.
-   * It is recommended to select a frequency of 2 MHz to limit PLL jitter.
-   */
-
-  if ( sys_clk > 180 ) {
-    return RTEMS_INVALID_NUMBER;
-  } else if ( sys_clk >= 96 ) {
-    pll_n = sys_clk << 1;
-    pll_p = RCC_PLLCFGR_PLLP_BY_2;
-  } else if ( sys_clk >= 48 ) {
-    pll_n = sys_clk << 2;
-    pll_p = RCC_PLLCFGR_PLLP_BY_4;
-  } else if ( sys_clk >= 24 ) {
-    pll_n = sys_clk << 3;
-    pll_p = RCC_PLLCFGR_PLLP_BY_8;
-  } else {
-    return RTEMS_INVALID_NUMBER;
-  }
-
-  if ( hse_clk == 0 || hse_flag == 0 ) {
-    src_clk = 16;
-    hse_flag = 0;
-  } else {
-    src_clk = hse_clk;
-  }
-
-  pll_m = src_clk; /* divide by the oscilator speed in MHz */
-
-  /* pll_q is a prescaler from VCO for the USB OTG FS, SDIO and RNG,
-   * best if results in the 48MHz for the USB
-   */
-  pll_q = ( (long) ( src_clk * pll_n ) ) / pll_m / 48;
-
-  if ( pll_q < 2 ) {
-    pll_q = 2;
-  }
-
-  /* APB1 prescaler, APB1 clock must be < 42MHz */
-  apbpre1 = ( sys_clk * 100 ) / 42;
-
-  if ( apbpre1 <= 100 ) {
-    apbpre1 = RCC_CFGR_PPRE1_BY_1;
-  } else if ( apbpre1 <= 200 ) {
-    apbpre1 = RCC_CFGR_PPRE1_BY_2;
-  } else if ( apbpre1 <= 400 ) {
-    apbpre1 = RCC_CFGR_PPRE1_BY_4;
-  } else if ( apbpre1 <= 800 ) {
-    apbpre1 = RCC_CFGR_PPRE1_BY_8;
-  } else if ( apbpre1 ) {
-    apbpre1 = RCC_CFGR_PPRE1_BY_16;
-  }
-
-  /* APB2 prescaler, APB2 clock must be < 84MHz */
-  apbpre2 = ( sys_clk * 100 ) / 84;
-
-  if ( apbpre2 <= 100 ) {
-    apbpre2 = RCC_CFGR_PPRE2_BY_1;
-  } else if ( apbpre2 <= 200 ) {
-    apbpre2 = RCC_CFGR_PPRE2_BY_2;
-  } else if ( apbpre2 <= 400 ) {
-    apbpre2 = RCC_CFGR_PPRE2_BY_4;
-  } else if ( apbpre2 <= 800 ) {
-    apbpre2 = RCC_CFGR_PPRE2_BY_8;
-  } else {
-    apbpre2 = RCC_CFGR_PPRE2_BY_16;
-  }
-
-  rcc->cr |= RCC_CR_HSION;   /* turn on HSI */
-
-  while ( ( !( rcc->cr & RCC_CR_HSIRDY ) ) ) ;
-
-  /* all prescalers to 0, clock source to HSI */
-  rcc->cfgr &= 0x00000300;
-  rcc->cfgr |= RCC_CFGR_SW_HSI;
-
-  while ( ( ( rcc->cfgr & RCC_CFGR_SWS_MSK ) != RCC_CFGR_SWS_HSI ) ) ;
-
-  /* turn off PLL */
-  rcc->cr &= ~( RCC_CR_PLLON | RCC_CR_PLLRDY );
-
-  /* turn on HSE */
-  if ( hse_flag ) {
-    rcc->cr |= RCC_CR_HSEON;
-    timeout = 400;
-
-    while ( ( !( rcc->cr & RCC_CR_HSERDY ) ) && timeout-- ) ;
-
-    assert( timeout != 0 );
-
-    if ( timeout == 0 ) {
-      return RTEMS_TIMEOUT;
+  } else if(conf->flash_voltage_mV < 2400) {
+    if(hclk_mhz<=18) {
+      nwaits = 0;
+    } else if(hclk_mhz<=36) {
+      nwaits = 1;
+    } else if(hclk_mhz<=54) {
+      nwaits = 2;
+    } else if(hclk_mhz<=72) {
+      nwaits = 3;
+    } else if(hclk_mhz<=90) {
+      nwaits = 4;
+    } else if(hclk_mhz<=108) {
+      nwaits = 5;
+    } else {
+      nwaits = 6;
+    }
+  } else if(conf->flash_voltage_mV < 2700) {
+    if(hclk_mhz<=24) {
+      nwaits = 0;
+    } else if(hclk_mhz<=48) {
+      nwaits = 1;
+    } else if(hclk_mhz<=72) {
+      nwaits = 2;
+    } else if(hclk_mhz<=96) {
+      nwaits = 3;
+    } else {
+      nwaits = 4;
+    }
+  } else { // 2.7V -> 3.3V
+    if(hclk_mhz<=30) {
+      nwaits = 0;
+    } else if(hclk_mhz<=60) {
+      nwaits = 1;
+    } else if(hclk_mhz<=90) {
+      nwaits = 2;
+    } else {
+      nwaits = 3;
     }
   }
 
-  rcc->pllcfgr &= 0xF0BC8000; /* clear PLL prescalers */
+  acr = STM32F4_FLASH_ACR_LATENCY_SET(acr, nwaits);
 
-  /* set pll parameters */
-  rcc->pllcfgr |= RCC_PLLCFGR_PLLM( pll_m ) | /* input divider */
-                  RCC_PLLCFGR_PLLN( pll_n ) | /* multiplier */
-                  pll_p |                     /* output divider from table */
-                                              /* HSE v HSI */
-                  ( hse_flag ? RCC_PLLCFGR_PLLSRC_HSE : RCC_PLLCFGR_PLLSRC_HSI )
-                  |
-                  RCC_PLLCFGR_PLLQ( pll_q );    /* PLLQ divider */
+  // enable caching
+  acr |=  STM32F4_FLASH_ACR_DCEN | STM32F4_FLASH_ACR_ICEN;
+  // PM0059 says prefetch "is useful if at least one wait
+  // state is needed".
+  if(nwaits)
+    acr |= STM32F4_FLASH_ACR_PRFTEN;
 
-  /* set prescalers for the internal busses */
-  rcc->cfgr |= apbpre1 |
-               apbpre2 |
-               ahbpre;
+  // enable
+  flash->acr = acr;
 
-  /*
-   * Set flash parameters, hard coded for now for fast system clocks.
-   * TODO implement some math to use flash on as low latancy as possible
-   */
-  flash->acr = STM32F4_FLASH_ACR_LATENCY( 5 ) | /* latency */
-               STM32F4_FLASH_ACR_ICEN |       /* instruction cache */
-               STM32F4_FLASH_ACR_DCEN |        /* data cache */
-               STM32F4_FLASH_ACR_PRFTEN;
+  // ST doc recommends reading back config. to "check".
+  // paranoia in case there is some timing issue.
+  (void)flash->acr;
+}
 
-  /* turn on PLL */
-  rcc->cr |= RCC_CR_PLLON;
-  timeout = 40000;
+// find smallest PPRE such that f_out <= f_limit
+static
+bool calc_pclk_div(uint32_t f_in,
+                   uint32_t f_limit,
+                   uint32_t *pf_out,
+                   uint32_t *ppre)
+{
+  uint32_t div = f_in / f_limit;
 
-  while ( ( !( rcc->cr & RCC_CR_PLLRDY ) ) && --timeout ) ;
-  
-  assert( timeout != 0 );
+  if(f_in % f_limit)
+    div++; // round to higher divider, lower frequency
 
-  if ( timeout == 0 ) {
-    return RTEMS_TIMEOUT;
+  // round up to power of 2
+  div--;
+  div |= div >> 1u;
+  div |= div >> 2u;
+  div |= div >> 4u;
+  div |= div >> 8u;
+  div |= div >> 16u;
+  div++;
+
+  switch(div) {
+  case 0:
+  case 1: *ppre = 0x0; break;
+  case 2: *ppre = 0x4; break;
+  case 4: *ppre = 0x5; break;
+  case 8: *ppre = 0x6; break;
+  case 16:*ppre = 0x7; break;
+  default:
+    // impossible divider
+    return false;
   }
 
-  /* clock source to PLL */
-  rcc->cfgr = ( rcc->cfgr & ~RCC_CFGR_SW_MSK ) | RCC_CFGR_SW_PLL;
+  *pf_out = f_in / div;
+  return true;
+}
 
-  while ( ( ( rcc->cfgr & RCC_CFGR_SWS_MSK ) != RCC_CFGR_SWS_PLL ) ) ;
+static
+int init_main_osc(const stm32f4_clock_config_t * const conf)
+{
+  volatile stm32f4_rcc * const rcc = STM32F4_RCC;
+  uint32_t f_ref;
 
-  return RTEMS_SUCCESSFUL;
+  if(conf->hse_freq_hz) {
+    // using external OSC (perhaps though PLL)
+
+    rcc->cr |= STM32F4_RCC_CR_HSEON;
+
+    // missing external clock will hang here.
+    while ( !( rcc->cr & STM32F4_RCC_CR_HSERDY ) ) ;
+
+    f_ref = conf->hse_freq_hz;
+
+  } else {
+    // using internal OSC (perhaps though PLL)
+
+    rcc->cr |= STM32F4_RCC_CR_HSION; // likely already enabled
+
+    while ( !( rcc->cr & STM32F4_RCC_CR_HSIRDY ) ) ;
+
+    f_ref = STM32F4_HSI_OSCILLATOR;
+  }
+
+  if(conf->pll_mult_n) { // use PLL
+    uint32_t pllcfgr = rcc->pllcfgr;
+
+    if(conf->pll_mult_n < 192 || conf->pll_mult_n > 432)
+      return 1;
+    if(conf->pll_div_m < 2 || conf->pll_div_m > 63)
+      return 2;
+    if(conf->pll_div_p!=2 && conf->pll_div_p!=4
+       && conf->pll_div_p!=6 && conf->pll_div_p!=8)
+      return 3;
+
+    uint64_t f_vco = (uint64_t)f_ref * conf->pll_mult_n / conf->pll_div_m;
+    if(f_vco < 192000000 || f_vco > 432000000)
+      return 4;
+
+    pllcfgr = STM32F4_RCC_PLLCFGR_PLLN_SET(pllcfgr, conf->pll_mult_n);
+    pllcfgr = STM32F4_RCC_PLLCFGR_PLLM_SET(pllcfgr, conf->pll_div_m);
+    pllcfgr = STM32F4_RCC_PLLCFGR_PLLP_SET(pllcfgr, (conf->pll_div_p-1u)/2u);
+    pllcfgr = STM32F4_RCC_PLLCFGR_PLLQ_SET(pllcfgr, 15);
+
+    if(conf->hse_freq_hz)
+      pllcfgr |= STM32F4_RCC_PLLCFGR_SRC;
+    else
+      pllcfgr &= ~STM32F4_RCC_PLLCFGR_SRC;
+
+    rcc->cr &= ~(STM32F4_RCC_CR_PLLON | STM32F4_RCC_CR_PLLRDY);
+
+    rcc->pllcfgr = pllcfgr;
+
+    rcc->cr |= STM32F4_RCC_CR_PLLON;
+
+    while ( !( rcc->cr & STM32F4_RCC_CR_PLLRDY ) ) ;
+
+    // widen to avoid overflow
+    uint64_t tmp = f_ref;
+    tmp *= conf->pll_mult_n;
+    tmp /= conf->pll_div_m;
+    tmp /= conf->pll_div_p;
+    f_ref = tmp;
+  }
+
+  if(f_ref > 120000000)
+    return 10;
+
+  uint32_t cfgr = rcc->cfgr;
+
+#if defined(STM32F4_FAMILY_F2XX)
+  uint32_t limit_pclk1 = 30000000;
+  uint32_t limit_pclk2 = 60000000;
+#else
+  uint32_t limit_pclk1 = 42000000;
+  uint32_t limit_pclk2 = 84000000;
+#endif
+
+  if(conf->pclk1_limit && limit_pclk1 > conf->pclk1_limit)
+    limit_pclk1 = conf->pclk1_limit;
+  if(conf->pclk2_limit && limit_pclk2 > conf->pclk2_limit)
+    limit_pclk2 = conf->pclk2_limit;
+
+  uint32_t pre_pclk1, pre_pclk2;
+
+  if(!calc_pclk_div(f_ref, limit_pclk1, &stm32f4_pclk_freq[0], &pre_pclk1))
+    return 20;
+  if(!calc_pclk_div(f_ref, limit_pclk2, &stm32f4_pclk_freq[1], &pre_pclk2))
+    return 30;
+
+  // from this point, we are committed
+
+  stm32f4_hclk_freq = f_ref;
+
+  init_flash(conf, f_ref);
+
+  // not using f_ref -> AHB divider
+  cfgr = STM32F4_RCC_CFGR_HPRE_SET(cfgr, 0);
+  // set AHB -> APBx dividers
+  cfgr = STM32F4_RCC_CFGR_PPRE1_SET(cfgr, pre_pclk1);
+  cfgr = STM32F4_RCC_CFGR_PPRE2_SET(cfgr, pre_pclk2);
+
+  uint32_t sw;
+  if(conf->pll_mult_n) {
+    sw = STM32F4_RCC_CFGR_SW_PLL;
+
+  } else if(conf->hse_freq_hz) {
+    sw = STM32F4_RCC_CFGR_SW_HSE;
+
+  } else {
+    sw = STM32F4_RCC_CFGR_SW_HSI;
+  }
+
+  cfgr = STM32F4_RCC_CFGR_SW_SET(cfgr, sw);
+  rcc->cfgr = cfgr;
+
+  while(STM32F4_RCC_CFGR_SW_GET(rcc->cfgr) != sw) {}
+
+  return 0;
 }
 
 #endif /* STM32F4_FAMILY_F4XXXX */
 
 #ifdef STM32F4_FAMILY_F10XXX
 
-static void init_main_osc( void )
+static bool init_main_osc( const stm32f4_clock_config_t * const conf )
 {
-
+  (void)conf;
+  return true;
 }
 
 #endif /* STM32F4_FAMILY_F10XXX */
 
 void bsp_start( void )
 {
-  init_main_osc();
+  int err;
+  if(0!=(err = init_main_osc(&stm32f4_clock_config))) {
+    // fall back to internal osc.
+    stm32f4_clock_config_t defconf = {};
+    if(init_main_osc(&defconf))
+      while(1) {}; // oops...
+  }
 
   stm32f4_gpio_set_config_array( &stm32f4_start_config_gpio[ 0 ] );
+
+  if(err){
+    // with clocks and (some) I/O configured, hopefully printk()
+    // can work now.
+    printk("Warning: stm32f4_clock_config not valid.  err %d."
+           "         Using default.\n",
+           err);
+  }
 
   bsp_interrupt_initialize();
 }
