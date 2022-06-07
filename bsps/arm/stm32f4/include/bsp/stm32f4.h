@@ -73,6 +73,19 @@
 
 /** @} */
 
+#include <bsp/stm32_spi.h>
+
+/**
+ * @name STM32 SPI
+ * @{
+ */
+
+#define STM32F4_SPI3 ((volatile stm32f4_spi *) (STM32F4_BASE + 0x40003C00))
+#define STM32F4_SPI2 ((volatile stm32f4_spi *) (STM32F4_BASE + 0x40003800))
+#define STM32F4_SPI1 ((volatile stm32f4_spi *) (STM32F4_BASE + 0x40013000))
+
+/** @} */
+
 /**
  * @name STM32 USART
  * @{

@@ -61,6 +61,9 @@ librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/stm32f4/i2c/i2c.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/stm32f4/i2c/i2c-config.c
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/stm32f4/i2c/st-i2c.c
 
+# SPI
+librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/stm32f4/spi/st-spi.c
+
 # Clock
 librtemsbsp_a_SOURCES += ../../../../../../bsps/arm/shared/clock/clock-armv7m.c
 
