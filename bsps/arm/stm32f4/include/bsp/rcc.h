@@ -183,6 +183,8 @@ void stm32f4_rcc_set_reset(stm32f4_rcc_index index, bool set);
 
 void stm32f4_rcc_set_clock(stm32f4_rcc_index index, bool set);
 
+bool stm32f4_rcc_clock_enabled(stm32f4_rcc_index index);
+
 #ifdef STM32F4_FAMILY_F4XXXX
 void stm32f4_rcc_set_low_power_clock(stm32f4_rcc_index index, bool set);
 #endif /* STM32F4_FAMILY_F4XXXX */

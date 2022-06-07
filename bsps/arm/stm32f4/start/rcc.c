@@ -75,6 +75,15 @@ void stm32f4_rcc_set_clock(stm32f4_rcc_index index, bool set)
   rcc_set(index, set, &rcc->ahbenr [0]);
 }
 
+bool stm32f4_rcc_clock_enabled(stm32f4_rcc_index index)
+{
+    volatile stm32f4_rcc *rcc = STM32F4_RCC;
+    unsigned reg = index >> 5;
+    uint32_t bit = 1u << (index & 0x1f);
+
+    return !!(rcc->ahbenr[reg] & bit);
+}
+
 #ifdef STM32F4_FAMILY_F4XXXX
 void stm32f4_rcc_set_low_power_clock(stm32f4_rcc_index index, bool set)
 {
