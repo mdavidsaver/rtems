@@ -266,6 +266,15 @@ typedef union {
 
 #endif /* STM32F4_FAMILY_F10XXX */
 
+/** @brief Initial I/O pin configuration.
+ *
+ *  Applied early during bsp_start()
+ *
+ *  A default (weak) definition is provided, which may be
+ *  overridden by application specific configuration.
+ *
+ *  @note This array must end with `STM32F4_GPIO_CONFIG_TERMINAL`.
+ */
 extern const stm32f4_gpio_config stm32f4_start_config_gpio [];
 
 void stm32f4_gpio_set_clock(int pin, bool set);

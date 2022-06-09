@@ -15,6 +15,7 @@
 #include <bsp/io.h>
 #include <bsp.h>
 
+__attribute__((weak))
 const stm32f4_gpio_config stm32f4_start_config_gpio [] = {
 #ifdef STM32F4_FAMILY_F4XXXX
   #ifdef STM32F4_ENABLE_USART_1
@@ -42,10 +43,10 @@ const stm32f4_gpio_config stm32f4_start_config_gpio [] = {
     STM32F4_PIN_USART6_RX_PC7,
   #endif
   #ifdef STM32F4_ENABLE_I2C1
-    #error Not implemented.
+    #warning Not implemented.
   #endif
   #ifdef STM32F4_ENABLE_I2C2
-    #error Not implemented.
+    #warning Not implemented.
   #endif
 #endif /* STM32F4_FAMILY_F4XXXX */
 #ifdef STM32F4_FAMILY_F10XXX
@@ -70,7 +71,7 @@ const stm32f4_gpio_config stm32f4_start_config_gpio [] = {
     STM32F4_PIN_UART5_RX,
   #endif
   #ifdef STM32F4_ENABLE_USART_6
-    #error STM32F10XXX has no USART 6
+    #warning STM32F10XXX has no USART 6
   #endif
   #ifdef STM32F4_ENABLE_I2C1
     STM32F4_PIN_I2C1_SCL_MAP0,
