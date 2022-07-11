@@ -7,6 +7,7 @@ include_HEADERS += ../../../../../../bsps/arm/stm32f4/include/tm27.h
 
 include_bspdir = $(includedir)/bsp
 include_bsp_HEADERS =
+include_bsp_HEADERS += ../../../../../../bsps/arm/stm32f4/include/bsp/flash.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/stm32f4/include/bsp/i2c.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/stm32f4/include/bsp/io.h
 include_bsp_HEADERS += ../../../../../../bsps/arm/stm32f4/include/bsp/irq.h
