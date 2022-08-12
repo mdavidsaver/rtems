@@ -229,22 +229,29 @@ static void usart_intialize(usart_context *ctxt,
 {
   volatile stm32f4_usart *hw = ctxt->info->hw;
   uint32_t ref_hz = bsp_pclk(ctxt->info->pclk);
-
-  stm32f4_rcc_set_clock(ctxt->info->rcc, true);
-
-  /* This function likely called twice.  First for early printk(),
-     * where we don't enable interrupts (and term==NULL).
-     * Then again later via usart_first_open()
-     */
-  if(hw->cr1 & STM32F4_USART_CR1_RXNEIE)
-    return; // already initialized
+  uint32_t cr1;
 
   if(ref_hz < 2000000 || ref_hz > 50000000)
     return; // out of range
 
+  stm32f4_rcc_set_clock(ctxt->info->rcc, true);
+
+  cr1 = hw->cr1;
+
+  /* This function likely called twice.
+   * - first printk() (likely before console),
+   *   where we don't enable interrupts (and term==NULL).
+   * - via usart_first_open()
+   */
+  if(cr1 & STM32F4_USART_CR1_RXNEIE)
+    return; // usart_first_open() already completed
+
+  // setting BRR and CR1 is idempotent
+
   usart_set_bbr(hw, ref_hz, ctxt->baud);
 
-  hw->cr1 |= STM32F4_USART_CR1_TE | STM32F4_USART_CR1_RE | STM32F4_USART_CR1_UE;
+  hw->cr1 = cr1 | STM32F4_USART_CR1_TE | STM32F4_USART_CR1_RE
+      | STM32F4_USART_CR1_UE;
 
   if(term) {
     // initialize to match CR* registers
@@ -322,6 +329,7 @@ static void usart_write_support(
     if(hw->sr & STM32F4_USART_SR_TXE) {
       ctxt->wrote = 1;
       hw->dr = STM32F4_USART_DR_SET(hw->dr, buf[0]);
+
     } else {
       ctxt->wrote = 0;
     }
@@ -353,9 +361,6 @@ static bool usart_set_attributes(
   if((term->c_cflag & CSIZE) != CS8)
     return false;
 
-  if(term->c_cflag & (PARENB|PARODD))
-    return false; // TODO: understand coupling between CR1[M] and CR1[PCE]
-
   if((term->c_cflag & CRTSCTS) && !ctxt->info->ctsrts)
     return false;
 
@@ -363,14 +368,32 @@ static bool usart_set_attributes(
 
   usart_set_bbr(hw, ref_hz, baud);
 
+  if(term->c_cflag & PARENB) { // parity bit
+    uint32_t cr1 = hw->cr1;
+    if(term->c_cflag & PARODD) { // odd
+      cr1 |= STM32F4_USART_CR1_PS;
+
+    } else { // even
+      cr1 &= ~STM32F4_USART_CR1_PS;
+    }
+    // select 9-bits.  8 data and 1 parity
+    hw->cr1 = cr1 | STM32F4_USART_CR1_PCE | STM32F4_USART_CR1_M;
+
+  } else { // no parity bit
+    // select 8 bits, no parity
+    hw->cr1 &= ~(STM32F4_USART_CR1_PCE | STM32F4_USART_CR1_M
+                 | STM32F4_USART_CR1_PS);
+  }
+
   // selects 1 or 2 stops.
   // termios can't configure 0.5 or 1.5
   hw->cr2 = STM32F4_USART_CR2_STOP_SET(hw->cr2,
                                        (term->c_cflag & CSTOPB) ? 2 : 0);
 
-  if(term->c_cflag & CRTSCTS) {
+  if(term->c_cflag & CRTSCTS) { // hardware flow control
     hw->cr3 |= STM32F4_USART_CR3_CTSE | STM32F4_USART_CR3_RTSE;
-  } else {
+
+  } else { // no (or software?) flow control
     hw->cr3 &= ~(STM32F4_USART_CR3_CTSE | STM32F4_USART_CR3_RTSE);
   }
 
