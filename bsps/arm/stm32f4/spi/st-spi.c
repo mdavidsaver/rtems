@@ -423,7 +423,7 @@ int stm32f4_spi_register(stm32f4_spi_t *bus,
     bus->base.setup = &stm32f4_spi_setup;
     bus->base.transfer = &stm32f4_spi_transfer;
     bus->base.destroy = &stm32f4_spi_destroy;
-    bus->base.speed_hz = bsp_pclk(bus->info->pclk)/256;
+    bus->base.speed_hz = bsp_pclk(bus->info->pclk)/128;
 
     err = spi_bus_register(&bus->base, bus->info->fname);
 
